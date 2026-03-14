@@ -13,10 +13,21 @@ import { ProjectDialog } from './ProjectDialog';
 import { RenovationItemDialog } from './RenovationItemDialog';
 import { cn } from '@/lib/utils';
 
+type StatusFilter = 'ALL' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'ALL', label: 'Tutti' },
+  { value: 'IN_PROGRESS', label: 'In corso' },
+  { value: 'COMPLETED', label: 'Completati' },
+  { value: 'PLANNED', label: 'Pianificati' },
+  { value: 'ON_HOLD', label: 'Sospesi' },
+];
+
 export function RenovationPage() {
   const [projects, setProjects] = useState<RenovationProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   const [projectDialog, setProjectDialog] = useState<{ open: boolean; project?: RenovationProject }>({ open: false });
   const [deleteProjectDialog, setDeleteProjectDialog] = useState<{ open: boolean; project?: RenovationProject }>({ open: false });
@@ -53,6 +64,10 @@ export function RenovationPage() {
     } finally { setDeleting(false); }
   };
 
+  const filteredProjects = statusFilter === 'ALL'
+    ? projects
+    : projects.filter((p) => p.status === statusFilter);
+
   const totalCost = projects.reduce((sum, p) => sum + p.items.reduce((s, i) => s + i.totalPrice, 0), 0);
   const totalPaid = projects.reduce((sum, p) => sum + p.items.reduce((s, i) => s + i.paidAmount, 0), 0);
 
@@ -71,16 +86,37 @@ export function RenovationPage() {
         }
       />
 
+      {/* Filtri per stato */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {STATUS_FILTER_OPTIONS.map((opt) => (
+          <Button
+            key={opt.value}
+            variant={statusFilter === opt.value ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter(opt.value)}
+          >
+            {opt.label}
+            {opt.value !== 'ALL' && (
+              <span className="ml-1.5 text-xs opacity-70">
+                ({projects.filter((p) => p.status === opt.value).length})
+              </span>
+            )}
+          </Button>
+        ))}
+      </div>
+
       <div className="space-y-4">
-        {projects.length === 0 && (
+        {filteredProjects.length === 0 && (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              Nessun progetto di ristrutturazione. Clicca "Nuovo progetto" per iniziare.
+              {statusFilter === 'ALL'
+                ? 'Nessun progetto di ristrutturazione. Clicca "Nuovo progetto" per iniziare.'
+                : `Nessun progetto con stato "${STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter)?.label}".`}
             </CardContent>
           </Card>
         )}
 
-        {projects.map((project) => {
+        {filteredProjects.map((project) => {
           const expanded = expandedId === project.id;
           const projTotal = project.items.reduce((s, i) => s + i.totalPrice, 0);
           const projPaid = project.items.reduce((s, i) => s + i.paidAmount, 0);
